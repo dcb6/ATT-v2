@@ -21,6 +21,9 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 using OxyPlot.Axes;
 
+using WindowsQuaternion = System.Numerics.Quaternion;
+using System.Diagnostics;
+
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=234238
 
 namespace RealTimeGraph {
@@ -75,8 +78,27 @@ namespace RealTimeGraph {
     public sealed partial class LineGraph : Page {
 
         private IMetaWearBoard metawear;
-        private IAccelerometer accelerometer;
         private ISensorFusionBosch sensorFusion;
+
+        int numBoards;
+        //private IntPtr cppBoard;
+        private IntPtr[] boards;
+        bool startNext = true;
+        string LiveData = "";
+        bool isRunning = false;
+        bool[] centered = { false, false };
+        bool[] shouldCenter = { false, false };
+        Stopwatch myStopWatch = new Stopwatch();
+
+
+        List<DataPoint>[] dataPoints = { new List<DataPoint>(), new List<DataPoint>() };
+        int[] dataNums = { 0, 0 };
+        string[] dataStrings = { "", "" };
+        int[] freq = { 0, 0 };
+        Quaternion[] centerQuats = new Quaternion[2];
+        List<string>[] data = new List<string>[2];
+
+        //List<List<float>> saveData = new List<List<float>>();
 
         public LineGraph() {
             InitializeComponent();
@@ -85,34 +107,35 @@ namespace RealTimeGraph {
         protected async override void OnNavigatedTo(NavigationEventArgs e) {
             base.OnNavigatedTo(e);
 
+            // MEEEEEE
+            numBoards = 1;
+
             var samples = 0;
             var model = (DataContext as MainViewModel).MyModel;
 
             metawear = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(e.Parameter as BluetoothLEDevice);
-
-            //accelerometer = metawear.GetModule<IAccelerometer>();
-            //accelerometer.Configure(odr: 100f, range: 8f);
 
             sensorFusion = metawear.GetModule<ISensorFusionBosch>();
             sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
 
             print("Sensor fusion configured.");
 
-            //await accelerometer.Acceleration.AddRouteAsync(source => source.Stream(async data => {
-            //    var value = data.Value<Acceleration>();
             await sensorFusion.Quaternion.AddRouteAsync(source => source.Stream(async data => {
                 var value = data.Value<Quaternion>();
                 await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
-                    (model.Series[0] as LineSeries).Points.Add(new DataPoint(samples, value.X));
-                    (model.Series[1] as LineSeries).Points.Add(new DataPoint(samples, value.Y));
-                    (model.Series[2] as LineSeries).Points.Add(new DataPoint(samples, value.Z));
+                    var secs = myStopWatch.ElapsedMilliseconds * .001;
+                    (model.Series[0] as LineSeries).Points.Add(new DataPoint(secs, value.X));
+                    (model.Series[1] as LineSeries).Points.Add(new DataPoint(secs, value.Y));
+                    (model.Series[2] as LineSeries).Points.Add(new DataPoint(secs, value.Z));
                     samples++;
 
                     model.InvalidatePlot(true);
                     if (samples > MainViewModel.MAX_DATA_SAMPLES) {
                         model.Axes[1].Reset();
-                        model.Axes[1].Maximum = samples;
-                        model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
+                        // model.Axes[1].Maximum = samples;
+                        // model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
+                        model.Axes[1].Maximum = secs;
+                        model.Axes[1].Minimum = secs - MainViewModel.MAX_DATA_SAMPLES * .01;
                         model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
                     }
                 });
@@ -129,13 +152,11 @@ namespace RealTimeGraph {
 
         private void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
             if (streamSwitch.IsOn) {
-                //accelerometer.Acceleration.Start();
-                //accelerometer.Start();
+                myStopWatch.Start();
                 sensorFusion.Quaternion.Start();
                 sensorFusion.Start();
             } else {
-                //accelerometer.Acceleration.Stop();
-                //accelerometer.Stop();
+                myStopWatch.Stop();
                 sensorFusion.Quaternion.Stop();
                 sensorFusion.Stop();
             }
