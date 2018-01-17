@@ -23,12 +23,14 @@ using OxyPlot.Axes;
 
 using WindowsQuaternion = System.Numerics.Quaternion;
 using System.Diagnostics;
+using Windows.UI.Xaml.Media;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=234238
 
 namespace RealTimeGraph {
     public class MainViewModel {
-        public const int MAX_DATA_SAMPLES = 960;
+        // public const int MAX_DATA_SAMPLES = 960;
+        public const int MAX_SECONDS = 10;
         public MainViewModel() {
             MyModel = new PlotModel {
                 Title = "Angles",
@@ -65,7 +67,7 @@ namespace RealTimeGraph {
                 MajorGridlineStyle = LineStyle.Solid,
                 AbsoluteMinimum = 0,
                 Minimum = 0,
-                Maximum = MAX_DATA_SAMPLES
+                Maximum = MAX_SECONDS
             });
         }
 
@@ -98,6 +100,9 @@ namespace RealTimeGraph {
         Quaternion[] centerQuats = new Quaternion[2];
         List<string>[] data = new List<string>[2];
 
+        PlotModel model;
+        int samples;
+
         //List<List<float>> saveData = new List<List<float>>();
 
         public LineGraph() {
@@ -110,35 +115,41 @@ namespace RealTimeGraph {
             // MEEEEEE
             numBoards = 1;
 
-            var samples = 0;
-            var model = (DataContext as MainViewModel).MyModel;
+            samples = 0;
+            model = (DataContext as MainViewModel).MyModel;
 
             metawear = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(e.Parameter as BluetoothLEDevice);
 
             sensorFusion = metawear.GetModule<ISensorFusionBosch>();
             sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
+            sensorFusion.Quaternion.Stop();
+            sensorFusion.Stop();
 
             print("Sensor fusion configured.");
 
             await sensorFusion.Quaternion.AddRouteAsync(source => source.Stream(async data => {
                 var value = data.Value<Quaternion>();
-                await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
-                    var secs = myStopWatch.ElapsedMilliseconds * .001;
-                    (model.Series[0] as LineSeries).Points.Add(new DataPoint(secs, value.X));
-                    (model.Series[1] as LineSeries).Points.Add(new DataPoint(secs, value.Y));
-                    (model.Series[2] as LineSeries).Points.Add(new DataPoint(secs, value.Z));
-                    samples++;
+                if (isRunning)
+                {
+                    await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
+                        var secs = myStopWatch.ElapsedMilliseconds * .001;
+                        (model.Series[0] as LineSeries).Points.Add(new DataPoint(secs, value.X));
+                        (model.Series[1] as LineSeries).Points.Add(new DataPoint(secs, value.Y));
+                        (model.Series[2] as LineSeries).Points.Add(new DataPoint(secs, value.Z));
+                        samples++;
 
-                    model.InvalidatePlot(true);
-                    if (samples > MainViewModel.MAX_DATA_SAMPLES) {
-                        model.Axes[1].Reset();
-                        // model.Axes[1].Maximum = samples;
-                        // model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
-                        model.Axes[1].Maximum = secs;
-                        model.Axes[1].Minimum = secs - MainViewModel.MAX_DATA_SAMPLES * .01;
-                        model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
-                    }
-                });
+                        model.InvalidatePlot(true);
+                        if (secs > MainViewModel.MAX_SECONDS)
+                        {
+                            model.Axes[1].Reset();
+                            //model.Axes[1].Maximum = samples;
+                            //model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
+                            model.Axes[1].Maximum = secs;
+                            model.Axes[1].Minimum = secs - MainViewModel.MAX_SECONDS;
+                            model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
+                        }
+                    });
+                }
             }));
         }
 
@@ -152,13 +163,20 @@ namespace RealTimeGraph {
 
         private void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
             if (streamSwitch.IsOn) {
+                Clear_Click(null, null);
                 myStopWatch.Start();
+                isRunning = true;
+                samples = 0;
                 sensorFusion.Quaternion.Start();
                 sensorFusion.Start();
+
+                Clear.Background = new SolidColorBrush(Windows.UI.Colors.Red);
             } else {
-                myStopWatch.Stop();
+                isRunning = false;
                 sensorFusion.Quaternion.Stop();
                 sensorFusion.Stop();
+                myStopWatch.Stop();
+                myStopWatch.Reset();
             }
         }
 
@@ -167,9 +185,8 @@ namespace RealTimeGraph {
             // saveData();
         }
 
-        private void Clear_Click(object sender, RoutedEventArgs e)
+        private async void Clear_Click(object sender, RoutedEventArgs e)
         {
-            /*
             for (int i = 0; i < numBoards; i++)
             {
                 data[i] = new List<String>();
@@ -177,12 +194,25 @@ namespace RealTimeGraph {
                 dataNums[i] = 0;
                 dataPoints[i].Clear();
             }
-            refreshChart();
+            
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
+                foreach (var series in model.Series)
+                {
+                    var lseries = series as LineSeries;
+                    lseries.Points.Clear();
+                }
+                model.Axes[1].Reset();
+                model.Axes[1].Maximum = 0;
+                model.Axes[1].Minimum = MainViewModel.MAX_SECONDS;
+                model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
+                model.InvalidatePlot(true);
+            });
+
+
             if (!isRunning)
             {
                 Clear.Background = new SolidColorBrush(Windows.UI.Colors.Gray);
             }
-            */
         }
 
         private void Center_Click(object sender, RoutedEventArgs e)
