@@ -35,11 +35,15 @@
         <CheckBox IsChecked="False" x:Name="gyroscopeCheckBox" Grid.Column="0" FontSize="15" Content="Gyroscope" Margin="94,192,0,496" Height="30" Width="176" Grid.ColumnSpan="2"/>
         <CheckBox IsChecked="False" x:Name="accelerometerCheckBox" Grid.Column="0" FontSize="15" Content="Accelerometer" Margin="94,224,0,464" Height="30" Width="231" Grid.ColumnSpan="2"/>
         -->
+        <TextBlock Text="--" x:Name="AverageFrequencyTextBlock" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-700,0,0" Height = "60"/>
         
-        <ToggleSwitch x:Name="streamSwitch" Grid.Column="0" Header="Stream" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="100,-400,0,0" Toggled="streamSwitch_Toggled"/>
-        <TextBlock Text="Frequency:" Grid.Column="0" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-280,0,0" Height = "60"/>
-        <TextBlock Text="100" x:Name="FrequencyTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-190,0,0" Height = "60"/>
-        <TextBlock Text="100" x:Name="FrequencyTextBlock2" Foreground="Blue" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,-190,77,0" Height = "60"/>
+        <ToggleSwitch x:Name="streamSwitch" Grid.Column="0" Header="Stream" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="100,-600,0,0" Toggled="streamSwitch_Toggled"/>
+        <TextBlock Text="Frequency:" Grid.Column="0" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-480,0,0" Height = "60"/>
+        <TextBlock Text="--" x:Name="FrequencyTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-390,0,0" Height = "60"/>
+        <TextBlock Text="--" x:Name="FrequencyTextBlock2" Foreground="Blue" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,-390,77,0" Height = "60"/>
+        <TextBlock Text="Battery:" Grid.Column="0" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-280,0,0" Height = "60"/>
+        <TextBlock Text="--" x:Name="BatteryTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-190,0,0" Height = "60"/>
+        <TextBlock Text="--" x:Name="BatteryTextBlock2" Foreground="Blue" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,-190,77,0" Height = "60"/>
         <Button x:Name="Save" Grid.Column="0" Content="Save" HorizontalAlignment="Left" Margin="45,-80,0,0" VerticalAlignment="Center" Click="Save_Click" Height="50" Background="Green" Width="120"/>
         <Button x:Name="Clear" Grid.Column="0" Content="Clear" HorizontalAlignment="Right" Margin="0,-80,45,0" VerticalAlignment="Center" Click="Clear_Click" Height="50" Background="Gray" Width="120"/>
 

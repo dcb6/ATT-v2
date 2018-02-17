@@ -24,12 +24,14 @@ using OxyPlot.Axes;
 using WindowsQuaternion = System.Numerics.Quaternion;
 using System.Diagnostics;
 using Windows.UI.Xaml.Media;
+using MbientLab.MetaWear.Core.Settings;
+using System.Threading.Tasks;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=234238
 
 namespace RealTimeGraph {
     public class MainViewModel {
-        // public const int MAX_DATA_SAMPLES = 960;
+        public const int MAX_DATA_SAMPLES = 960;
         public const int MAX_SECONDS = 10;
         public MainViewModel() {
             MyModel = new PlotModel {
@@ -55,10 +57,10 @@ namespace RealTimeGraph {
             MyModel.Axes.Add(new LinearAxis {
                 Position = AxisPosition.Left,
                 MajorGridlineStyle = LineStyle.Solid,
-                AbsoluteMinimum = -8f,
-                AbsoluteMaximum = 8f,
-                Minimum = -8f,
-                Maximum = 8f,
+                AbsoluteMinimum = -1f,
+                AbsoluteMaximum = 1f,
+                Minimum = -1f,
+                Maximum = 1f,
                 Title = "Value"
             });
             MyModel.Axes.Add(new LinearAxis {
@@ -67,7 +69,7 @@ namespace RealTimeGraph {
                 MajorGridlineStyle = LineStyle.Solid,
                 AbsoluteMinimum = 0,
                 Minimum = 0,
-                Maximum = MAX_SECONDS
+                Maximum = MAX_DATA_SAMPLES
             });
         }
 
@@ -102,6 +104,7 @@ namespace RealTimeGraph {
 
         PlotModel model;
         int samples;
+        int secs = 0;
 
         //List<List<float>> saveData = new List<List<float>>();
 
@@ -111,46 +114,50 @@ namespace RealTimeGraph {
 
         protected async override void OnNavigatedTo(NavigationEventArgs e) {
             base.OnNavigatedTo(e);
-
+            metawear = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(e.Parameter as BluetoothLEDevice);
+            InitBatteryTimer();
             // MEEEEEE
             numBoards = 1;
 
-            samples = 0;
             model = (DataContext as MainViewModel).MyModel;
 
-            metawear = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(e.Parameter as BluetoothLEDevice);
+            print("Hello.");
+        }
 
-            sensorFusion = metawear.GetModule<ISensorFusionBosch>();
-            sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
-            sensorFusion.Quaternion.Stop();
-            sensorFusion.Stop();
+        private System.Threading.Timer timer1;
+        public void InitFreqTimer()
+        {
+            timer1 = new System.Threading.Timer(displaySampleFreq, null, 0, 1000);
 
-            print("Sensor fusion configured.");
+            //timer1.Tick += new EventHandler<object>(displaySampleFreq);
+            //timer1.Interval = new TimeSpan(0, 0, 1);
+            //timer1.Start();
+        }
 
-            await sensorFusion.Quaternion.AddRouteAsync(source => source.Stream(async data => {
-                var value = data.Value<Quaternion>();
-                if (isRunning)
-                {
-                    await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
-                        var secs = myStopWatch.ElapsedMilliseconds * .001;
-                        (model.Series[0] as LineSeries).Points.Add(new DataPoint(secs, value.X));
-                        (model.Series[1] as LineSeries).Points.Add(new DataPoint(secs, value.Y));
-                        (model.Series[2] as LineSeries).Points.Add(new DataPoint(secs, value.Z));
-                        samples++;
+        public void InitBatteryTimer()
+        {
+            timer1 = new System.Threading.Timer(displayBatteryLevel,null,0,10000);
+        }
 
-                        model.InvalidatePlot(true);
-                        if (secs > MainViewModel.MAX_SECONDS)
-                        {
-                            model.Axes[1].Reset();
-                            //model.Axes[1].Maximum = samples;
-                            //model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
-                            model.Axes[1].Maximum = secs;
-                            model.Axes[1].Minimum = secs - MainViewModel.MAX_SECONDS;
-                            model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
-                        }
-                    });
-                }
-            }));
+        public async void displayBatteryLevel(Object state)
+        {
+            byte battery1 = await metawear.ReadBatteryLevelAsync();
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => {
+                BatteryTextBlock1.Text = battery1.ToString();
+            });
+        }
+
+        private async void displaySampleFreq(Object state)
+        {
+            secs += 1;
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => {
+                FrequencyTextBlock1.Text = freq[0] + " Hz";
+                FrequencyTextBlock2.Text = freq[1] + " Hz";
+                AverageFrequencyTextBlock.Text = samples / secs + "Hz";
+            });
+
+            freq[0] = 0;
+            freq[1] = 0;
         }
 
         private async void back_Click(object sender, RoutedEventArgs e) {
@@ -161,20 +168,55 @@ namespace RealTimeGraph {
             Frame.GoBack();
         }
 
-        private void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
+        private async void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
             if (streamSwitch.IsOn) {
                 Clear_Click(null, null);
                 myStopWatch.Start();
                 isRunning = true;
                 samples = 0;
+
+                sensorFusion = metawear.GetModule<ISensorFusionBosch>();
+                sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
+
+                await sensorFusion.Quaternion.AddRouteAsync(source => source.Stream(async data => {
+                    var value = data.Value<Quaternion>();
+                    if (isRunning)
+                    {
+                        var secs = myStopWatch.ElapsedMilliseconds * 0.001;
+                        await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
+                            (model.Series[0] as LineSeries).Points.Add(new DataPoint(samples, value.X));
+                            (model.Series[1] as LineSeries).Points.Add(new DataPoint(samples, value.Y));
+                            (model.Series[2] as LineSeries).Points.Add(new DataPoint(samples, value.Z));
+                            samples++;
+                            freq[0]++;
+
+                            model.InvalidatePlot(true);
+                            //if (secs > MainViewModel.MAX_SECONDS)
+                            if (samples > MainViewModel.MAX_DATA_SAMPLES)
+                            {
+                                model.Axes[1].Reset();
+                                //model.Axes[1].Maximum = secs;
+                                //model.Axes[1].Minimum = secs - MainViewModel.MAX_SECONDS;
+                                model.Axes[1].Maximum = samples;
+                                model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
+                                model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
+                            }
+
+                        });
+                    }
+                }));
+
                 sensorFusion.Quaternion.Start();
                 sensorFusion.Start();
+                InitFreqTimer();
 
                 Clear.Background = new SolidColorBrush(Windows.UI.Colors.Red);
             } else {
                 isRunning = false;
-                sensorFusion.Quaternion.Stop();
                 sensorFusion.Stop();
+                sensorFusion.Quaternion.Stop();
+                metawear.TearDown();
+                timer1.Dispose();
                 myStopWatch.Stop();
                 myStopWatch.Reset();
             }
