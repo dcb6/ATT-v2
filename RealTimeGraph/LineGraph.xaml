@@ -13,32 +13,55 @@
     </Page.DataContext>
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="0,2,0,-2">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
+            <RowDefinition />
             <RowDefinition Height="30" />
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="350" />
-            <ColumnDefinition Width="*" />
+            <ColumnDefinition />
         </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0" VerticalAlignment="Center">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="70"/>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="50"/>
+                <RowDefinition Height="80"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
 
+            <ToggleSwitch x:Name="streamSwitch" Grid.Row="0" Grid.ColumnSpan="2" Header="Stream" HorizontalAlignment="Center" VerticalAlignment="Center" Toggled="streamSwitch_Toggled" Margin="110,0,0,0"/>
+            <ToggleSwitch x:Name="angleSwitch" Grid.Row="1" Grid.ColumnSpan="2" Header="Absolute Angle" HorizontalAlignment="Center" VerticalAlignment="Center" Toggled="streamSwitch_Toggled" Margin="110,0,0,0"/>
+            <TextBlock Text="Frequency:" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Height = "60"/>
+            <TextBlock Text="--" Grid.Row="3" x:Name="FrequencyTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Center" Height = "60"/>
+            <TextBlock Text="--" Grid.Row="3" x:Name="FrequencyTextBlock2" Foreground="Blue" Grid.Column="1" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Center" Height = "60"/>
+            <TextBlock Text="Battery:" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Height = "60"/>
+            <TextBlock Text="--" Grid.Row="5" x:Name="BatteryTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Center" Height = "60"/>
+            <TextBlock Text="--" Grid.Row="5" x:Name="BatteryTextBlock2" Foreground="Blue" Grid.Column="1" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Center" Height = "60"/>
+            <Grid Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="Save" Grid.Column="0" Content="Save" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Save_Click" Height="50" Background="Green" Width="150"/>
+                <Button x:Name="Clear" Grid.Column="1" Content="Clear" HorizontalAlignment="Center" VerticalAlignment="Center" Click="Clear_Click" Height="50" Background="Gray" Width="150"/>
+            </Grid>
+
+            <Button x:Name="center" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" Content="Center" HorizontalAlignment="Stretch" VerticalAlignment="Center" Click="Center_Click" Height="50" Background="MediumPurple" Width="300"/>
+        </Grid>
+        
 
         <Button x:Name="back" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Content="Back" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="back_Click"/>
         <TextBlock Text="--" x:Name="AverageFrequencyTextBlock" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-700,0,0" Height = "60"/>
         
-        <ToggleSwitch x:Name="streamSwitch" Grid.Column="0" Header="Stream" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="100,-600,0,0" Toggled="streamSwitch_Toggled"/>
-        <TextBlock Text="Frequency:" Grid.Column="0" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-480,0,0" Height = "60"/>
-        <TextBlock Text="--" x:Name="FrequencyTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-390,0,0" Height = "60"/>
-        <TextBlock Text="--" x:Name="FrequencyTextBlock2" Foreground="Blue" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,-390,77,0" Height = "60"/>
-        <TextBlock Text="Battery:" Grid.Column="0" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-280,0,0" Height = "60"/>
-        <TextBlock Text="--" x:Name="BatteryTextBlock1" Foreground="Orange" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-190,0,0" Height = "60"/>
-        <TextBlock Text="--" x:Name="BatteryTextBlock2" Foreground="Blue" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,-190,77,0" Height = "60"/>
-        <Button x:Name="Save" Grid.Column="0" Content="Save" HorizontalAlignment="Left" Margin="45,-80,0,0" VerticalAlignment="Center" Click="Save_Click" Height="50" Background="Green" Width="120"/>
-        <Button x:Name="Clear" Grid.Column="0" Content="Clear" HorizontalAlignment="Right" Margin="0,-80,45,0" VerticalAlignment="Center" Click="Clear_Click" Height="50" Background="Gray" Width="120"/>
-
-        <Button x:Name="center" Grid.Column="0" Content="Center" HorizontalAlignment="Stretch" Margin="45,80,45,0" VerticalAlignment="Center" Click="Center_Click" Height="40" Background="MediumPurple" />
-        <Button x:Name="stamp" Grid.Column="0" Content="Print 'START' +" HorizontalAlignment="Stretch" Margin="45,180,45,0" VerticalAlignment="Center" Click="Stamp_Click" Height="40" Background="CornflowerBlue" />
-        <TextBox x:Name="printInput" Grid.Column="0" PlaceholderText="Details" HorizontalAlignment="Stretch" Height="30" Margin="45,270,45,0" />
+       
         <Grid Grid.Column="1">
             <Grid.RowDefinitions>
                 <RowDefinition Height="100"/>
@@ -46,7 +69,7 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
             <TextBlock Text="Angle Measurement" Grid.Row="0" VerticalAlignment="Center" FontSize="50" HorizontalAlignment="Center"/>
-            <Grid Grid.Row="1" VerticalAlignment="Center">
+            <Grid x:Name="dataGrid" Grid.Row="1" VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="*" />

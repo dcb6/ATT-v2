@@ -26,6 +26,7 @@ using System.Diagnostics;
 using Windows.UI.Xaml.Media;
 using MbientLab.MetaWear.Core.Settings;
 using System.Threading.Tasks;
+using System.Text;
 
 // The Blank Page item template is documented at https://go.microsoft.com/fwlink/?LinkId=234238
 
@@ -84,29 +85,22 @@ namespace RealTimeGraph {
         private IMetaWearBoard metawear;
         private ISensorFusionBosch sensorFusion;
 
-        int numBoards;
+        int numBoards = 1;
         //private IntPtr cppBoard;
         private IntPtr[] boards;
         bool startNext = true;
-        string LiveData = "";
         bool isRunning = false;
         bool[] centered = { false, false };
         bool[] shouldCenter = { false, false };
         Stopwatch myStopWatch = new Stopwatch();
-
-
         List<DataPoint>[] dataPoints = { new List<DataPoint>(), new List<DataPoint>() };
-        int[] dataNums = { 0, 0 };
-        string[] dataStrings = { "", "" };
         int[] freq = { 0, 0 };
         Quaternion[] centerQuats = new Quaternion[2];
-        List<string>[] data = new List<string>[2];
-
         PlotModel model;
-        int samples;
+        int[] samples = { 0,0 };
         int secs = 0;
-
-        //List<List<float>> saveData = new List<List<float>>();
+        StringBuilder[] csv = {new StringBuilder(), new StringBuilder() };
+        TextBlock[] textblocks = new TextBlock[2];
 
         public LineGraph() {
             InitializeComponent();
@@ -115,9 +109,16 @@ namespace RealTimeGraph {
         protected async override void OnNavigatedTo(NavigationEventArgs e) {
             base.OnNavigatedTo(e);
             metawear = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(e.Parameter as BluetoothLEDevice);
+            textblocks[0] = DataTextBlock1;
+            textblocks[1] = DataTextBlock2;
+
             InitBatteryTimer();
             // MEEEEEE
-            numBoards = 1;
+            if (numBoards == 1)
+            {
+                dataGrid.Children.RemoveAt(1);
+                dataGrid.ColumnDefinitions.RemoveAt(1);
+            }
 
             model = (DataContext as MainViewModel).MyModel;
 
@@ -149,7 +150,7 @@ namespace RealTimeGraph {
             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => {
                 FrequencyTextBlock1.Text = freq[0] + " Hz";
                 FrequencyTextBlock2.Text = freq[1] + " Hz";
-                AverageFrequencyTextBlock.Text = samples / secs + "Hz";
+                AverageFrequencyTextBlock.Text = samples[0] / secs + "Hz";
             });
 
             freq[0] = 0;
@@ -167,7 +168,6 @@ namespace RealTimeGraph {
         void setText(Quaternion q, int sensorNumber)
         {
             String s = "W: " + q.W.ToString() + "\nX: " + q.X.ToString() + "\nY: " + q.Y.ToString() + "\nZ: " + q.Z.ToString();
-            TextBlock[] textblocks = { DataTextBlock1, DataTextBlock2};
             Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { textblocks[sensorNumber].Text = s; });
         }
 
@@ -176,7 +176,7 @@ namespace RealTimeGraph {
                 Clear_Click(null, null);
                 myStopWatch.Start();
                 isRunning = true;
-                samples = 0;
+                samples[0] = 0;
 
                 sensorFusion = metawear.GetModule<ISensorFusionBosch>();
                 sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
@@ -187,22 +187,24 @@ namespace RealTimeGraph {
                     {
                         var secs = myStopWatch.ElapsedMilliseconds * 0.001;
                         await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
-                            (model.Series[0] as LineSeries).Points.Add(new DataPoint(samples, value.X));
-                            (model.Series[1] as LineSeries).Points.Add(new DataPoint(samples, value.Y));
-                            (model.Series[2] as LineSeries).Points.Add(new DataPoint(samples, value.Z));
-                            samples++;
+                            (model.Series[0] as LineSeries).Points.Add(new DataPoint(samples[0], value.X));
+                            (model.Series[1] as LineSeries).Points.Add(new DataPoint(samples[0], value.Y));
+                            (model.Series[2] as LineSeries).Points.Add(new DataPoint(samples[0], value.Z));
+                            samples[0]++;
                             freq[0]++;
                             setText(value,0);
+                            String newLine = string.Format("{0},{1},{2},{3},{4}{5}", samples[0],value.W,value.X,value.Y,value.Z,Environment.NewLine);
+                            addPoint(newLine, 0);
 
                             model.InvalidatePlot(true);
                             //if (secs > MainViewModel.MAX_SECONDS)
-                            if (samples > MainViewModel.MAX_DATA_SAMPLES)
+                            if (samples[0] > MainViewModel.MAX_DATA_SAMPLES)
                             {
                                 model.Axes[1].Reset();
                                 //model.Axes[1].Maximum = secs;
                                 //model.Axes[1].Minimum = secs - MainViewModel.MAX_SECONDS;
-                                model.Axes[1].Maximum = samples;
-                                model.Axes[1].Minimum = (samples - MainViewModel.MAX_DATA_SAMPLES);
+                                model.Axes[1].Maximum = samples[0];
+                                model.Axes[1].Minimum = (samples[0] - MainViewModel.MAX_DATA_SAMPLES);
                                 model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
                             }
 
@@ -228,17 +230,65 @@ namespace RealTimeGraph {
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            // saveData();
+            saveData();
+        }
+
+        private async Task saveData(int sensorNumber = 1)
+        {
+            print("save initiated for sensor: ");
+            print(sensorNumber.ToString());
+
+            //for (int i = 0; i < numBoards; i++)  {
+            var savePicker = new Windows.Storage.Pickers.FileSavePicker();
+            // Default start location
+            //savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            // Dropdown of file types the user can save the file as
+            savePicker.FileTypeChoices.Add("Plain Text", new List<string>() { ".txt" });
+            // Default file name if the user does not type one in or select a file to replace
+            savePicker.SuggestedFileName = "New Document";
+
+            Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+            if (file != null)
+            {
+                // Prevent updates to the remote version of the file until
+                // we finish making changes and call CompleteUpdatesAsync.
+                Windows.Storage.CachedFileManager.DeferUpdates(file);
+                // write to file
+                await Windows.Storage.FileIO.WriteTextAsync(file, csv[sensorNumber - 1].ToString());
+                // Let Windows know that we're finished changing the file so
+                // the other app can update the remote version of the file.
+                // Completing updates may require Windows to ask for user input.
+                Windows.Storage.Provider.FileUpdateStatus status =
+                    await Windows.Storage.CachedFileManager.CompleteUpdatesAsync(file);
+                if (status == Windows.Storage.Provider.FileUpdateStatus.Complete)
+                {
+                    //this.textBlock.Text = "File " + file.Name + " was saved.";
+                    if (sensorNumber == 1 && numBoards == 2)
+                    {
+                        saveData(2);
+                    }
+                }
+                else
+                {
+                    //this.textBlock.Text = "File " + file.Name + " couldn't be saved.";
+                }
+            }
+            else
+            {
+                //this.textBlock.Text = "Operation cancelled.";
+            }
+            //	}
         }
 
         private async void Clear_Click(object sender, RoutedEventArgs e)
         {
             for (int i = 0; i < numBoards; i++)
             {
-                data[i] = new List<String>();
-                dataStrings[i] = "";
-                dataNums[i] = 0;
-                dataPoints[i].Clear();
+                //data[i] = new List<String>();
+                //dataStrings[i] = "";
+                //dataNums[i] = 0;
+                //dataPoints[i].Clear();
+                csv[i] = new StringBuilder();
             }
             
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => {
@@ -254,7 +304,6 @@ namespace RealTimeGraph {
                 model.InvalidatePlot(true);
             });
 
-
             if (!isRunning)
             {
                 Clear.Background = new SolidColorBrush(Windows.UI.Colors.Gray);
@@ -263,39 +312,16 @@ namespace RealTimeGraph {
 
         private void Center_Click(object sender, RoutedEventArgs e)
         {
-            /*
             shouldCenter[0] = true;
             shouldCenter[1] = true;
-            */
         }
 
-        private void Stamp_Click(object sender, RoutedEventArgs e)
+        void addPoint(String s, int sensorNumber)
         {
-            /*
-            if (startNext == true)
+            if (isRunning)
             {
-                String text = "START " + DateTime.Now + " " + printInput.Text;
-
-                System.Diagnostics.Debug.WriteLine(text);
-                addPoint(text, 1);
-                addPoint(text, 2);
-                startNext = false;
-                stamp.Background = new SolidColorBrush(Windows.UI.Colors.MediumPurple);
-                stamp.Content = "Print 'STOP' +\n";
-
+                csv[sensorNumber].Append(s);
             }
-            else
-            {
-                String text = "STOP " + DateTime.Now + " " + printInput.Text;
-                System.Diagnostics.Debug.WriteLine(text);
-                addPoint(text, 1);
-                addPoint(text, 2);
-                startNext = true;
-                stamp.Background = new SolidColorBrush(Windows.UI.Colors.CornflowerBlue);
-                stamp.Content = "Print 'START' +\n";
-
-            }
-            */
         }
 
         private void print(String s)
