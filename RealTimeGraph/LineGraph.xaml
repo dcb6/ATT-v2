@@ -12,29 +12,18 @@
         <local:MainViewModel/>
     </Page.DataContext>
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="0,2,0,-2">
-        <!-- <Grid.RowDefinitions>
-            <RowDefinition Height="100*" />
-            <RowDefinition Height="850*" />
-            <RowDefinition Height="50*" />
-        </Grid.RowDefinitions> -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="30" />
+        </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="350" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        
-        <Button x:Name="back" Grid.Column="0" Grid.ColumnSpan="3" Content="Back" HorizontalAlignment="Stretch" VerticalAlignment="Bottom" Click="back_Click"/>
-        
-        <!--
-        <TextBlock x:Name="orientationText" Grid.Column="1" Text="{Binding}" FontSize="30" Margin="10,112,132,0" />
 
-        <CheckBox IsChecked="False" x:Name="quaternionCheckBox" Grid.Column="0" FontSize="15" Content="Quaternions" Margin="94,130,0,558" Height="30" Width="194" Grid.ColumnSpan="2"/>
-        <CheckBox IsChecked="False" x:Name="gravityCheckBox" Grid.Column="0" FontSize="15" Content="Gravity Vector" Margin="94,101,0,587" Height="30" Width="243" Grid.ColumnSpan="2"/>
-        <CheckBox IsChecked="False" x:Name="magnetometerCheckBox" Grid.Column="0" FontSize="15" Content="Magnetometer" Margin="94,161,0,527" Height="30" Width="243" Grid.ColumnSpan="2"/>
-        <CheckBox IsChecked="False" x:Name="gyroscopeCheckBox" Grid.Column="0" FontSize="15" Content="Gyroscope" Margin="94,192,0,496" Height="30" Width="176" Grid.ColumnSpan="2"/>
-        <CheckBox IsChecked="False" x:Name="accelerometerCheckBox" Grid.Column="0" FontSize="15" Content="Accelerometer" Margin="94,224,0,464" Height="30" Width="231" Grid.ColumnSpan="2"/>
-        -->
+        <Button x:Name="back" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Content="Back" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Click="back_Click"/>
         <TextBlock Text="--" x:Name="AverageFrequencyTextBlock" Grid.Column="0" FontSize="30" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="77,-700,0,0" Height = "60"/>
         
         <ToggleSwitch x:Name="streamSwitch" Grid.Column="0" Header="Stream" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="100,-600,0,0" Toggled="streamSwitch_Toggled"/>
@@ -48,17 +37,24 @@
         <Button x:Name="Clear" Grid.Column="0" Content="Clear" HorizontalAlignment="Right" Margin="0,-80,45,0" VerticalAlignment="Center" Click="Clear_Click" Height="50" Background="Gray" Width="120"/>
 
         <Button x:Name="center" Grid.Column="0" Content="Center" HorizontalAlignment="Stretch" Margin="45,80,45,0" VerticalAlignment="Center" Click="Center_Click" Height="40" Background="MediumPurple" />
-
         <Button x:Name="stamp" Grid.Column="0" Content="Print 'START' +" HorizontalAlignment="Stretch" Margin="45,180,45,0" VerticalAlignment="Center" Click="Stamp_Click" Height="40" Background="CornflowerBlue" />
         <TextBox x:Name="printInput" Grid.Column="0" PlaceholderText="Details" HorizontalAlignment="Stretch" Height="30" Margin="45,270,45,0" />
-
-        <TextBlock Text="Sensor 1 Data" x:Name="DataTextBlock1" Foreground="Orange"  Grid.Column="2" FontSize="40" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,140,0,0" Height = "60"/>
-        <TextBlock Text="Sensor 2 Data" x:Name="DataTextBlock2" Foreground="Blue" Grid.Column="2" FontSize="40" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,200,0,0" Height = "60"/>
-        
-        
-        <TextBlock Text="Angle Measurement" VerticalAlignment="Top" Grid.Column="2" FontSize="50" HorizontalAlignment="Center" Margin="0,67,0,0"/>
-        <oxy:PlotView Model="{Binding MyModel}" Grid.Column="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Margin="0,300,0,30"/>
-
-
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="100"/>
+                <RowDefinition Height="150"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Angle Measurement" Grid.Row="0" VerticalAlignment="Center" FontSize="50" HorizontalAlignment="Center"/>
+            <Grid Grid.Row="1" VerticalAlignment="Center">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"  Text="Sensor 1 Data" x:Name="DataTextBlock1" Foreground="Orange" FontSize="25" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,0"/>
+                <TextBlock Grid.Column="1" Text="Sensor 2 Data" x:Name="DataTextBlock2" Foreground="Blue" FontSize="25" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,0,0"/>
+            </Grid>
+            <oxy:PlotView Model="{Binding MyModel}" Grid.Row="2" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        </Grid>
     </Grid>
 </Page>

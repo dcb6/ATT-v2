@@ -128,10 +128,6 @@ namespace RealTimeGraph {
         public void InitFreqTimer()
         {
             timer1 = new System.Threading.Timer(displaySampleFreq, null, 0, 1000);
-
-            //timer1.Tick += new EventHandler<object>(displaySampleFreq);
-            //timer1.Interval = new TimeSpan(0, 0, 1);
-            //timer1.Start();
         }
 
         public void InitBatteryTimer()
@@ -168,6 +164,13 @@ namespace RealTimeGraph {
             Frame.GoBack();
         }
 
+        void setText(Quaternion q, int sensorNumber)
+        {
+            String s = "W: " + q.W.ToString() + "\nX: " + q.X.ToString() + "\nY: " + q.Y.ToString() + "\nZ: " + q.Z.ToString();
+            TextBlock[] textblocks = { DataTextBlock1, DataTextBlock2};
+            Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { textblocks[sensorNumber].Text = s; });
+        }
+
         private async void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
             if (streamSwitch.IsOn) {
                 Clear_Click(null, null);
@@ -189,6 +192,7 @@ namespace RealTimeGraph {
                             (model.Series[2] as LineSeries).Points.Add(new DataPoint(samples, value.Z));
                             samples++;
                             freq[0]++;
+                            setText(value,0);
 
                             model.InvalidatePlot(true);
                             //if (secs > MainViewModel.MAX_SECONDS)
@@ -292,69 +296,6 @@ namespace RealTimeGraph {
 
             }
             */
-        }
-
-        private void Start_Click(object sender, RoutedEventArgs e)
-        {
-            /*
-            if (!isRunning)
-            {
-                myStopWatch.Start();
-                Clear_Click(null, null);
-                Fn_IntPtr[] handlers = { quaternionDataHandler1, quaternionDataHandler2 };
-                for (int i = 0; i < numBoards; i++)
-                {
-                    Clear.Background = new SolidColorBrush(Windows.UI.Colors.Red);
-
-                    isRunning = true;
-
-                    quatStart.Background = new SolidColorBrush(Windows.UI.Colors.Red);
-                    quatStart.Content = "Stop";
-
-                    var cppBoard = boards[i];
-
-                    if (quaternionCheckBox.IsChecked == true)
-                    {
-                        mbl_mw_settings_set_connection_parameters(cppBoard, 7.5F, 7.5F, 0, 6000);
-                        mbl_mw_sensor_fusion_set_mode(cppBoard, SensorFusion.Mode.NDOF);
-                        mbl_mw_sensor_fusion_set_acc_range(cppBoard, SensorFusion.AccRange.AR_16G); ///AR_2G, 4, 8, 16
-						mbl_mw_sensor_fusion_set_gyro_range(cppBoard, SensorFusion.GyroRange.GR_2000DPS); ///GR_2000DPS, 1000, 500, 250
-
-                        mbl_mw_sensor_fusion_write_config(cppBoard);
-
-                        IntPtr quaternionDataSignal = mbl_mw_sensor_fusion_get_data_signal(cppBoard, SensorFusion.Data.QUATERION); //this line works
-
-                        mbl_mw_datasignal_subscribe(quaternionDataSignal, handlers[i]);
-                        mbl_mw_sensor_fusion_enable_data(cppBoard, SensorFusion.Data.QUATERION);
-                        mbl_mw_sensor_fusion_start(cppBoard);
-                    }
-                }
-            }
-            else
-            {
-                myStopWatch.Stop();
-                foreach (IntPtr cppBoard in boards)
-                {
-                    if (quaternionCheckBox.IsChecked == true)
-                    {
-                        IntPtr quatSignal = mbl_mw_sensor_fusion_get_data_signal(cppBoard, SensorFusion.Data.QUATERION);
-
-                        mbl_mw_sensor_fusion_stop(cppBoard);
-                        mbl_mw_sensor_fusion_clear_enabled_mask(cppBoard);
-                        mbl_mw_datasignal_unsubscribe(quatSignal);
-                    }
-                }
-
-                isRunning = false;
-                refreshChart();
-
-                quatStart.Background = new SolidColorBrush(Windows.UI.Colors.Green);
-                quatStart.Content = "Start";
-
-                saveData();
-            }
-            */
-
         }
 
         private void print(String s)
