@@ -101,6 +101,7 @@ namespace RealTimeGraph {
         int secs = 0;
         StringBuilder[] csv = {new StringBuilder(), new StringBuilder() };
         TextBlock[] textblocks = new TextBlock[2];
+        private System.Threading.Timer timer1;
 
         public LineGraph() {
             InitializeComponent();
@@ -116,16 +117,22 @@ namespace RealTimeGraph {
             // MEEEEEE
             if (numBoards == 1)
             {
-                dataGrid.Children.RemoveAt(1);
-                dataGrid.ColumnDefinitions.RemoveAt(1);
+                removeBoardTwoFormatting();
             }
 
             model = (DataContext as MainViewModel).MyModel;
+        }
+        
+        public void removeBoardTwoFormatting()
+        {
+            dataGrid.Children.RemoveAt(1);
+            dataGrid.ColumnDefinitions.RemoveAt(1);
 
-            print("Hello.");
+            controlGrid.Children.Remove(FrequencyTextBlock2);
+            controlGrid.Children.Remove(BatteryTextBlock2);
+            controlGrid.ColumnDefinitions.RemoveAt(1);
         }
 
-        private System.Threading.Timer timer1;
         public void InitFreqTimer()
         {
             timer1 = new System.Threading.Timer(displaySampleFreq, null, 0, 1000);
@@ -140,7 +147,7 @@ namespace RealTimeGraph {
         {
             byte battery1 = await metawear.ReadBatteryLevelAsync();
             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => {
-                BatteryTextBlock1.Text = battery1.ToString();
+                BatteryTextBlock1.Text = battery1.ToString() + " %";
             });
         }
 

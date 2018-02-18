@@ -21,7 +21,7 @@
             <ColumnDefinition Width="350" />
             <ColumnDefinition />
         </Grid.ColumnDefinitions>
-        <Grid Grid.Column="0" VerticalAlignment="Center">
+        <Grid x:Name="controlGrid" Grid.Column="0" VerticalAlignment="Center">
             <Grid.RowDefinitions>
                 <RowDefinition Height="70"/>
                 <RowDefinition Height="70"/>
