@@ -19,7 +19,7 @@
         <RowDefinition Height="50*" />
       </Grid.RowDefinitions>
       <TextBlock x:Name="textBlock" HorizontalAlignment="Center" Text="Select Device" VerticalAlignment="Stretch" FontSize="48" Foreground="#758cc0"/>
-      <ListView x:Name="pairedDevices" HorizontalAlignment="Stretch" Grid.Row="1" VerticalAlignment="Stretch" SelectionChanged="pairedDevices_SelectionChanged">
+      <ListView x:Name="pairedDevices" HorizontalAlignment="Stretch" Grid.Row="1" VerticalAlignment="Stretch" SelectionMode="Multiple" SelectionChanged="pairedDevices_SelectionChanged">
             <ListView.ItemTemplate>
                 <DataTemplate>
                     <StackPanel>
@@ -31,5 +31,6 @@
             </ListView.ItemTemplate>
         </ListView>
       <Button x:Name="refreshDevices" Content="Refresh" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Bottom" Click="refreshDevices_Click" />
+      <Button x:Name="Continue" Content="Continue" HorizontalAlignment="Stretch" Grid.Row="2" Margin="0,-65,0,0" Click="continue_Click" />
     </Grid>
 </Page>

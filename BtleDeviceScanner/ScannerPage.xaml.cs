@@ -120,21 +120,55 @@ namespace MbientLab.BtleDeviceScanner {
         /// Callback for the devices list which navigates to the <see cref="DeviceSetup"/> page with the selected device
         /// </summary>
         private async void pairedDevices_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+
+        }
+
+        private async void continue_Click(Object sender, RoutedEventArgs e)
+        {
+            var devices = pairedDevices.SelectedItems;
+            BluetoothLEDevice[] passDevices = new BluetoothLEDevice[devices.Count];
+
+            if (devices.Count == 0 || devices.Count > 2)
+            {
+                await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                CoreDispatcherPriority.Normal, async () =>
+                {
+                    await new ContentDialog()
+                    {
+                        Title = "Invalid Number of Devices",
+                        Content = "Please select 1 or 2 sensors from the list of connected sensors to proceed.",
+                        PrimaryButtonText = "OK"
+                    }.ShowAsync();
+                });
+                return;
+            }
+
             btleWatcher.Stop();
-            var item = ((ListView)sender).SelectedItem as BluetoothLEDevice;
+            // var item = ((ListView)sender).SelectedItem as BluetoothLEDevice;
+            var i = 1;
+            foreach (BluetoothLEDevice item in devices)
+            {
+                if (item != null)
+                {
+                    passDevices[i-1] = item;
+                    ContentDialog initPopup = new ContentDialog()
+                    {
+                        Title = "Initializing API",
+                        Content = "Please wait while the app initializes the API"
+                    };
 
-            if (item != null) {
-                ContentDialog initPopup = new ContentDialog() {
-                    Title = "Initializing API",
-                    Content = "Please wait while the app initializes the API"
-                };
+                    initPopup.ShowAsync();
+                    var board = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(item);
+                    await board.InitializeAsync();
+                    initPopup.Hide();
 
-                initPopup.ShowAsync();
-                var board = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(item);
-                await board.InitializeAsync();
-                initPopup.Hide();
 
-                Frame.Navigate(config.NextPageType, item);
+
+                    if (i == devices.Count) {
+                        Frame.Navigate(config.NextPageType, passDevices);
+                    }
+                    i += 1;
+                }
             }
         }
     }
