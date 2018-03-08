@@ -118,13 +118,13 @@ namespace RealTimeGraph {
         
         int numBoards = 1;
         //private IntPtr cppBoard;
-        private IMetaWearBoard[] metawears;  // board storage
+        private IMetaWearBoard[] metawears;
         bool startNext = true;
-        bool isRunning = false; // avoids weird timing errors with switching streaming on and off
-        bool[] centered = { false, false }; // sensor has ben centered
-        bool[] shouldCenter = { false, false }; // take reference quaternion
-        bool record = false; // keeps track of if record switch is on -- avoids threading error when actually accessing switch
-        bool angleMode = false; // ^ same
+        bool isRunning = false;
+        bool[] centered = { false, false };
+        bool[] shouldCenter = { false, false };
+        bool record = false;
+        bool angleMode = false;
         Stopwatch myStopWatch = new Stopwatch();
         List<DataPoint>[] dataPoints = { new List<DataPoint>(), new List<DataPoint>() };
         int[] freq = { 0, 0 };
@@ -137,6 +137,7 @@ namespace RealTimeGraph {
         private System.Threading.Timer timer1;
         ISensorFusionBosch sensorFusion;
         ISensorFusionBosch sensorFusion2;
+        bool autoCenter = false;
 
         public LineGraph() {
             InitializeComponent();
@@ -148,7 +149,6 @@ namespace RealTimeGraph {
             var devices = e.Parameter as BluetoothLEDevice[];
             numBoards = devices.Length;
             metawears = new IMetaWearBoard[numBoards];
-            dateTextBox.Text = DateTime.Now.ToString("yyMMdd");
 
             for (var i = 0; i < numBoards; i++)
             {
@@ -174,8 +174,7 @@ namespace RealTimeGraph {
 
         public void removeBoardTwoFormatting()
         {
-            dataGrid.Children.Remove(DataTextBlock2);
-            dataGrid.Children.Remove(Name2);
+            dataGrid.Children.RemoveAt(1);
             dataGrid.ColumnDefinitions.RemoveAt(1);
 
             controlGrid.Children.Remove(FrequencyTextBlock2);
@@ -235,6 +234,8 @@ namespace RealTimeGraph {
         }
 
         private async void streamSwitch_Toggled(object sender, RoutedEventArgs e) {
+            double angle1 = 0;
+            double angle2 = 0;
             if (streamSwitch.IsOn) {
                 myStopWatch.Start();
                 isRunning = true;
@@ -248,7 +249,6 @@ namespace RealTimeGraph {
                 sensorFusion = metawears[0].GetModule<ISensorFusionBosch>();
                 sensorFusion.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
 
-                // ----------------------------------------------------- SENSOR 1 --------------------------------------------------------------
                 await sensorFusion.Quaternion.AddRouteAsync(source => source.Stream(async data =>
                 {
                     if (isRunning)
@@ -256,15 +256,22 @@ namespace RealTimeGraph {
                         var quat = data.Value<Quaternion>();
                         var time = data.FormattedTimestamp.ToString();
 
-                        var year = time.Substring(0,4); var month = time.Substring(5, 2); var day = time.Substring(8,2);
-                        var hour = time.Substring(11,2); var minute = time.Substring(14, 2); var second = time.Substring(17, 2);
+                        var year = time.Substring(0,4);
+                        var month = time.Substring(5, 2);
+                        var day = time.Substring(8,2);
+                        var hour = time.Substring(11,2);
+                        var minute = time.Substring(14, 2);
+                        var second = time.Substring(17, 2);
                         var milli = time.Substring(20, 3);
-
+                        //print(time.ToString());
+                        //print(time[0].ToString());
+                        // Store data point
                         if (record)
                         {
                             String newLine = string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}{12}", samples[0], year, month, day, hour, minute, second, milli, quat.W, quat.X, quat.Y, quat.Z, Environment.NewLine);
                             addPoint(newLine, 0);
                         }
+                        //var secs = myStopWatch.ElapsedMilliseconds * 0.001;
 
                         // Update counters
                         samples[0]++;
@@ -291,10 +298,12 @@ namespace RealTimeGraph {
                         } else if (angleMode)
                         {
                             angle = 2 * Math.Acos(quat.W) * (180 / Math.PI);
+
                             denom = Math.Sqrt(1 - Math.Pow(quat.W, 2));
                             denom = (denom < 0.001) ? 1 : denom;  // avoid divide by zero type errors
                         }
-                        angle = (angle > 180) ? 360 - angle : angle;
+                        angle = (angle > 250) ? 360 - angle : angle;
+                        angle1 = angle;
 
                         await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
                         {
@@ -331,6 +340,7 @@ namespace RealTimeGraph {
                                     model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
                                 }
                             }
+                            
                         });
                     }
                 }));
@@ -338,94 +348,102 @@ namespace RealTimeGraph {
                 sensorFusion.Quaternion.Start();
                 sensorFusion.Start();
 
-                // ----------------------------------------------------- SENSOR 2 --------------------------------------------------------------
-                if (numBoards == 2 && isRunning) {
+                if (numBoards == 2) {
                     sensorFusion2 = metawears[1].GetModule<ISensorFusionBosch>();
                     sensorFusion2.Configure();  // default settings is NDoF mode with +/-16g acc range and 2000dps gyro range
 
                     await sensorFusion2.Quaternion.AddRouteAsync(source => source.Stream(async data =>
                     {
                         var quat = data.Value<Quaternion>();
-                        var time = data.FormattedTimestamp.ToString();
-
-                        var year = time.Substring(0, 4); var month = time.Substring(5, 2); var day = time.Substring(8, 2);
-                        var hour = time.Substring(11, 2); var minute = time.Substring(14, 2); var second = time.Substring(17, 2);
-                        var milli = time.Substring(20, 3);
-
+                        // Store data point
                         if (record)
                         {
-                            String newLine = string.Format("{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11}{12}", samples[0], year, month, day, hour, minute, second, milli, quat.W, quat.X, quat.Y, quat.Z, Environment.NewLine);
+                            String newLine = string.Format("{0},{1},{2},{3},{4}{5}", samples[0], quat.W, quat.X, quat.Y, quat.Z, Environment.NewLine);
                             addPoint(newLine, 1);
                         }
-                        //var secs = myStopWatch.ElapsedMilliseconds * 0.001;
 
-                        // Update counters
-                        samples[1]++;
-                        freq[1]++;
-
-                        // Save reference quaternion
-                        if (shouldCenter[1])
+                        if (isRunning)
                         {
-                            centerQuats[1] = quat;
-                            shouldCenter[1] = false;
-                            centered[1] = true;
-                        }
+                            // Update counters
+                            samples[1]++;
+                            freq[1]++;
 
-                        double angle = 0;
-                        double denom = 1; // Initialize to 1 so dividing by value won't affect value
-
-                        if (centered[1])
-                        {
-                            WindowsQuaternion a = convertToWindowsQuaternion(centerQuats[1]);
-                            WindowsQuaternion b = convertToWindowsQuaternion(quat);
-
-                            quat = centerData(centerQuats[1], quat);
-                            angle = (angleMode) ? 2 * Math.Acos(WindowsQuaternion.Dot(a, b) / (a.Length() * b.Length())) * (180 / Math.PI) : 0;
-                        }
-                        else if (angleMode)
-                        {
-                            angle = 2 * Math.Acos(quat.W) * (180 / Math.PI);
-                            denom = Math.Sqrt(1 - Math.Pow(quat.W, 2));
-                            denom = (denom < 0.001) ? 1 : denom;  // avoid divide by zero type errors
-                        }
-                        angle = (angle > 180) ? 360 - angle : angle;
-
-                        await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                        {
-                            // Add values to plot
-                            if ((bool)wCheckbox.IsChecked)
+                            // Center quaternion if needed
+                            if (shouldCenter[1])
                             {
-                                (model.Series[5] as LineSeries).Points.Add(new DataPoint(samples[0], (angleMode) ? angle : quat.W));
-                            }
-                            if ((bool)xyzCheckbox.IsChecked)
-                            {
-                                (model.Series[6] as LineSeries).Points.Add(new DataPoint(samples[0], quat.X / denom));
-                                (model.Series[7] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Y / denom));
-                                (model.Series[8] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Z / denom));
+                                centerQuats[1] = quat;
+                                shouldCenter[1] = false;
+                                centered[1] = true;
                             }
 
-                            // Display values numerically
-                            double[] values = { angleMode ? angle : quat.W, (quat.X / denom), (quat.Y / denom), (quat.Z / denom) };
-                            String[] labels = { angleMode ? "Angle: " : "W: ", "\nX: ", "\nY: ", "\nY: " };
-                            String s = createOrientationText(labels, values);
-                            setText(s, 1);
+                            double angle = 0;
+                            double denom = 1;
 
-                            // Reset axes as needed
-                            if ((bool)wCheckbox.IsChecked || (bool)xyzCheckbox.IsChecked)
+                            if (centered[1])
                             {
-                                model.InvalidatePlot(true);
-                                //if (secs > MainViewModel.MAX_SECONDS)
-                                if (samples.Max() > MainViewModel.MAX_DATA_SAMPLES)
+                                WindowsQuaternion a = convertToWindowsQuaternion(centerQuats[1]);
+                                WindowsQuaternion b = convertToWindowsQuaternion(quat);
+
+                                angle = 2 * Math.Acos(WindowsQuaternion.Dot(a, b) / (a.Length() * b.Length())) * (180 / Math.PI); ;
+
+                                quat = centerData(centerQuats[1], quat);
+                                //System.Diagnostics.Debug.WriteLine(finalQuat.w.ToString() + "   " + finalQuat.x.ToString() + "   " + finalQuat.y.ToString() + "   " + finalQuat.z.ToString());
+                            }
+                            else if (angleMode)
+                            {
+                                angle = 2 * Math.Acos(quat.W) * (180 / Math.PI);
+                                denom = Math.Sqrt(1 - Math.Pow(quat.W, 2));
+                                denom = (denom < 0.001) ? 1 : denom;  // avoid divide by zero type errors
+                            }
+
+                            if (denom < 0.001)
+                            {
+                                denom = 1;
+                            }
+
+                            angle = (angle > 250) ? 360 - angle : angle;
+                            angle2 = angle;
+
+                            //var secs = myStopWatch.ElapsedMilliseconds * 0.001;
+                            await CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                // Display quaternion
+                                String s;
+                                // return;
+                                if (angleSwitch.IsOn)
                                 {
-                                    model.Axes[1].Reset();
-                                    //model.Axes[1].Maximum = secs;
-                                    //model.Axes[1].Minimum = secs - MainViewModel.MAX_SECONDS;
-                                    model.Axes[1].Maximum = samples.Max();
-                                    model.Axes[1].Minimum = (samples.Max() - MainViewModel.MAX_DATA_SAMPLES);
-                                    model.Axes[1].Zoom(model.Axes[1].Minimum, model.Axes[1].Maximum);
+                                    if ((bool)wCheckbox.IsChecked)
+                                    {
+                                        (model.Series[4] as LineSeries).Points.Add(new DataPoint(samples[0], angle));
+                                    }
+                                    if ((bool)xyzCheckbox.IsChecked)
+                                    {
+                                        (model.Series[5] as LineSeries).Points.Add(new DataPoint(samples[0], quat.X / denom));
+                                        (model.Series[6] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Y / denom));
+                                        (model.Series[7] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Z / denom));
+                                    }
+
+                                    s = "Angle: " + angle.ToString() + "\nX: " + (quat.X / denom).ToString() + "\nY: " + (quat.Y / denom).ToString() + "\nZ: " + (quat.Z / denom).ToString();
                                 }
-                            }
-                        });
+                                else
+                                {
+                                    if ((bool)wCheckbox.IsChecked)
+                                    {
+                                        (model.Series[4] as LineSeries).Points.Add(new DataPoint(samples[0], quat.W));
+                                    }
+                                    if ((bool)xyzCheckbox.IsChecked)
+                                    {
+                                        (model.Series[5] as LineSeries).Points.Add(new DataPoint(samples[0], quat.X));
+                                        (model.Series[6] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Y));
+                                        (model.Series[7] as LineSeries).Points.Add(new DataPoint(samples[0], quat.Z));
+                                    }
+
+                                    s = "W: " + quat.W.ToString() + "\nX: " + quat.X.ToString() + "\nY: " + quat.Y.ToString() + "\nZ: " + quat.Z.ToString();
+                                }
+                                setText(s, 1);
+                                difference.Text = Math.Abs(angle1 - angle2).ToString();
+                            });
+                        }
                     }));
 
                     sensorFusion2.Quaternion.Start();
@@ -471,9 +489,19 @@ namespace RealTimeGraph {
             angleMode = angleSwitch.IsOn;
         }
 
+        public async void centerOnRecordChecked(Object sender, RoutedEventArgs e)
+        {
+            autoCenter = (bool)centerOnRecord.IsChecked;
+        }
+
         public async void recordSwitch_Toggled(Object sender, RoutedEventArgs e)
         {
             record = recordSwitch.IsOn;
+            if (autoCenter && isRunning && recordSwitch.IsOn)
+            {
+                shouldCenter[0] = true;
+                shouldCenter[1] = true;
+            }
         }
 
         public async void wChecked(Object sender, RoutedEventArgs e)
@@ -526,10 +554,6 @@ namespace RealTimeGraph {
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            recordSwitch.IsOn = false;
-            recordSwitch_Toggled(null,null);
-            streamSwitch.IsOn = false;
-            streamSwitch_Toggled(null,null);
             saveData();
         }
 
@@ -540,7 +564,8 @@ namespace RealTimeGraph {
 
             var savePicker = new Windows.Storage.Pickers.FileSavePicker();
             savePicker.FileTypeChoices.Add("Plain Text", new List<string>() { ".txt" });
-            savePicker.SuggestedFileName = dateTextBox.Text + "_exp" + numberTextBox.Text + "_" + ((sensorNumber == 1) ? Name1.Text : Name2.Text);
+            savePicker.SuggestedFileName = "New Document";
+
             Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
             if (file != null)
             {
@@ -551,12 +576,9 @@ namespace RealTimeGraph {
                     await Windows.Storage.CachedFileManager.CompleteUpdatesAsync(file);
                 if (status == Windows.Storage.Provider.FileUpdateStatus.Complete)
                 {
-                    if (sensorNumber == numBoards)
+                    if (sensorNumber == 1 && numBoards == 2)
                     {
-                        numberTextBox.Text = (Int32.Parse(numberTextBox.Text) + 1).ToString();
-                    } else
-                    {
-                        saveData(sensorNumber + 1);
+                        saveData(2);
                     }
                 }
                 else
