@@ -125,16 +125,15 @@ namespace RealTimeGraph {
         bool[] shouldCenter = { false, false }; // take reference quaternion
         bool record = false; // keeps track of if record switch is on -- avoids threading error when actually accessing switch
         bool angleMode = false; // ^ same
-        Stopwatch myStopWatch = new Stopwatch();
-        List<DataPoint>[] dataPoints = { new List<DataPoint>(), new List<DataPoint>() };
-        int[] freq = { 0, 0 };
-        Quaternion[] centerQuats = new Quaternion[2];
+        Stopwatch myStopWatch = new Stopwatch(); // don't think this gets used anymore
+        int[] freq = { 0, 0 }; // stores number of samples received, reset every second
+        Quaternion[] refQuats = new Quaternion[2]; // reference quaternions
         PlotModel model;
-        int[] samples = { 0,0 };
+        int[] samples = { 0,0 }; // stores number of samples received 
         int secs = 0;
-        StringBuilder[] csv = {new StringBuilder(), new StringBuilder() };
+        StringBuilder[] csv = {new StringBuilder(), new StringBuilder() }; // data storage, more efficient than string concatenation
         TextBlock[] textblocks = new TextBlock[2];
-        private System.Threading.Timer timer1;
+        private System.Threading.Timer timer1; // used for triggering UI updates every second
         ISensorFusionBosch sensorFusion;
         ISensorFusionBosch sensorFusion2;
 
@@ -144,11 +143,12 @@ namespace RealTimeGraph {
 
         protected async override void OnNavigatedTo(NavigationEventArgs e) {
             base.OnNavigatedTo(e);
-            print(e.Parameter.ToString());
             var devices = e.Parameter as BluetoothLEDevice[];
             numBoards = devices.Length;
             metawears = new IMetaWearBoard[numBoards];
             dateTextBox.Text = DateTime.Now.ToString("yyMMdd");
+            AverageFrequencyTextBlock.Text = "";
+            TextBlock[] Macs = { Mac1, Mac2 };
 
             for (var i = 0; i < numBoards; i++)
             {
@@ -156,6 +156,8 @@ namespace RealTimeGraph {
                 metawears[i] = MbientLab.MetaWear.Win10.Application.GetMetaWearBoard(devices[i]);
                 var settings = metawears[i].GetModule<ISettings>();
                 settings.EditBleConnParams(maxConnInterval: 7.5f);
+
+                Macs[i].Text = metawears[i].MacAddress.ToString(); // update UI to show mac addresses of sensors
             }
 
             textblocks[0] = DataTextBlock1;
@@ -169,11 +171,12 @@ namespace RealTimeGraph {
             }
 
             model = (DataContext as MainViewModel).MyModel;
-            // Settings settings = metawears[0].getModule(Settings.class);
          }
 
+        // Remove all of the columns and UI items related to a potential second sensor.
         public void removeBoardTwoFormatting()
         {
+            dataGrid.Children.Remove(Mac2);
             dataGrid.Children.Remove(DataTextBlock2);
             dataGrid.Children.Remove(Name2);
             dataGrid.ColumnDefinitions.RemoveAt(1);
@@ -183,16 +186,19 @@ namespace RealTimeGraph {
             controlGrid.ColumnDefinitions.RemoveAt(1);
         }
 
+        // Initialize timer that causes displaySampleFreq() to be called every second.
         public void InitFreqTimer()
         {
             timer1 = new System.Threading.Timer(displaySampleFreq, null, 0, 1000);
         }
 
+        // Initialize timer that causes displayBatteryLevel() to be called every 10 seconds.
         public void InitBatteryTimer()
         {
-            timer1 = new System.Threading.Timer(displayBatteryLevel,null,0,10000);
+            timer1 = new System.Threading.Timer(displayBatteryLevel,null,0,10000); // causes displayBatteryLevel function to be called every 10 seconds
         }
 
+        // Display the battery level for each sensor as a percent.
         public async void displayBatteryLevel(Object state)
         {
             TextBlock[] textblocks = { BatteryTextBlock1, BatteryTextBlock2 };
@@ -203,20 +209,21 @@ namespace RealTimeGraph {
                 });
             }
         }
-
+        // Display the sample frequency for each sensor in Hz.
         private async void displaySampleFreq(Object state)
         {
             secs += 1;
             await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => {
                 FrequencyTextBlock1.Text = freq[0] + " Hz";
                 FrequencyTextBlock2.Text = freq[1] + " Hz";
-                AverageFrequencyTextBlock.Text = (samples[0] / secs).ToString() + " Hz";
+                // AverageFrequencyTextBlock.Text = (samples[0] / secs).ToString() + " Hz";
             });
 
             freq[0] = 0;
             freq[1] = 0;
         }
 
+        // Go back to the main page (sensor selection)
         private async void back_Click(object sender, RoutedEventArgs e) {
             for (var i = 0; i < numBoards; i++)
             {
@@ -229,6 +236,7 @@ namespace RealTimeGraph {
             Frame.GoBack();
         }
 
+        // Display quaternion information for each sensor in text form.
         void setText(String s, int sensorNumber)
         {
             Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => { textblocks[sensorNumber].Text = s; });
@@ -273,7 +281,7 @@ namespace RealTimeGraph {
                         // Save reference quaternion
                         if (shouldCenter[0])
                         {
-                            centerQuats[0] = quat;
+                            refQuats[0] = quat;
                             shouldCenter[0] = false;
                             centered[0] = true;
                         }
@@ -283,10 +291,10 @@ namespace RealTimeGraph {
 
                         if (centered[0])
                         {
-                            WindowsQuaternion a = convertToWindowsQuaternion(centerQuats[0]);
+                            WindowsQuaternion a = convertToWindowsQuaternion(refQuats[0]);
                             WindowsQuaternion b = convertToWindowsQuaternion(quat);
 
-                            quat = centerData(centerQuats[0], quat);
+                            quat = centerData(refQuats[0], quat);
                             angle = (angleMode) ? 2 * Math.Acos(WindowsQuaternion.Dot(a, b) / (a.Length() * b.Length())) * (180 / Math.PI) : 0;
                         } else if (angleMode)
                         {
@@ -366,7 +374,7 @@ namespace RealTimeGraph {
                         // Save reference quaternion
                         if (shouldCenter[1])
                         {
-                            centerQuats[1] = quat;
+                            refQuats[1] = quat;
                             shouldCenter[1] = false;
                             centered[1] = true;
                         }
@@ -376,10 +384,10 @@ namespace RealTimeGraph {
 
                         if (centered[1])
                         {
-                            WindowsQuaternion a = convertToWindowsQuaternion(centerQuats[1]);
+                            WindowsQuaternion a = convertToWindowsQuaternion(refQuats[1]);
                             WindowsQuaternion b = convertToWindowsQuaternion(quat);
 
-                            quat = centerData(centerQuats[1], quat);
+                            quat = centerData(refQuats[1], quat);
                             angle = (angleMode) ? 2 * Math.Acos(WindowsQuaternion.Dot(a, b) / (a.Length() * b.Length())) * (180 / Math.PI) : 0;
                         }
                         else if (angleMode)
@@ -454,6 +462,7 @@ namespace RealTimeGraph {
             }
         }
 
+        // silly function used to make the live orientation text
         public String createOrientationText(String[] labels, double[] values)
         {
             StringBuilder s = new StringBuilder();
@@ -465,12 +474,14 @@ namespace RealTimeGraph {
             return s.ToString();
         }
 
+        // Reset y axis and store angleSwitch state.
         public async void angleSwitch_Toggled(Object sender, RoutedEventArgs e)
         {
             resetYAxis();
             angleMode = angleSwitch.IsOn;
         }
 
+        // Store recordSwitch state.
         public async void recordSwitch_Toggled(Object sender, RoutedEventArgs e)
         {
             record = recordSwitch.IsOn;
@@ -486,6 +497,7 @@ namespace RealTimeGraph {
             resetYAxis();
         }
 
+        // Change axes to adjust for new maximum values.
         public void resetYAxis()
         {
             model.InvalidatePlot(true);
@@ -501,6 +513,7 @@ namespace RealTimeGraph {
             model.Axes[0].Zoom(model.Axes[0].Minimum, model.Axes[0].Maximum);
         }
 
+        // Center quaternion q2 with q1 as reference.
         Quaternion centerData(Quaternion q1, Quaternion q2)
         {
             WindowsQuaternion q1w = convertToWindowsQuaternion(q1);
@@ -512,27 +525,38 @@ namespace RealTimeGraph {
             return convertToQuaternion(center);
         }
 
+        // Converts mbientlab quaternion object to Windows quaternion object.
         WindowsQuaternion convertToWindowsQuaternion(Quaternion q)
         {
             WindowsQuaternion qw = new WindowsQuaternion(q.W, q.X, q.Y, q.Z);
             return qw;
         }
 
+        // Converts Windows quaternion object to mbientlab quaternion object.
         Quaternion convertToQuaternion(WindowsQuaternion wq)
         {
             Quaternion quat = new Quaternion(wq.W, wq.X, wq.Y, wq.Z);
             return quat;
         }
 
+        // Save stored data and record and stream switches
         private void Save_Click(object sender, RoutedEventArgs e)
         {
-            recordSwitch.IsOn = false;
-            recordSwitch_Toggled(null,null);
-            streamSwitch.IsOn = false;
-            streamSwitch_Toggled(null,null);
+            if (record)
+            {
+                recordSwitch.IsOn = false;
+                recordSwitch_Toggled(null, null);
+            }
+            if (isRunning)
+            {
+                streamSwitch.IsOn = false;
+                streamSwitch_Toggled(null, null);
+            }
+
             saveData();
         }
 
+        // Save all recorded data.
         private async Task saveData(int sensorNumber = 1)
         {
             print("save initiated for sensor: ");
@@ -570,6 +594,7 @@ namespace RealTimeGraph {
             }
         }
 
+        // Clear data and reset plot.
         private async void Clear_Click(object sender, RoutedEventArgs e)
         {
             for (int i = 0; i < numBoards; i++)
@@ -600,12 +625,14 @@ namespace RealTimeGraph {
             }
         }
 
+        // Tell code block receiving quaternion to store the next quaternion as the reference.
         private void Center_Click(object sender, RoutedEventArgs e)
         {
             shouldCenter[0] = true;
             shouldCenter[1] = true;
         }
 
+        // Add String s to the stored data.
         void addPoint(String s, int sensorNumber)
         {
             if (isRunning)
@@ -614,6 +641,7 @@ namespace RealTimeGraph {
             }
         }
 
+        // Lazy way to print to the debug output.
         private void print(String s)
         {
             System.Diagnostics.Debug.WriteLine(s);
